@@ -1,12 +1,11 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Media;
-using AvaloniaEdit.Document;
-using AvaloniaEdit.Rendering;
-using VaultDaily.ViewModels;
 using VaultDaily.Editor;
+using VaultDaily.ViewModels;
 
 namespace VaultDaily
 {
@@ -19,42 +18,20 @@ namespace VaultDaily
         public MainWindow()
         {
             InitializeComponent();
+
             _viewModel = new MainViewModel();
             DataContext = _viewModel;
 
             _colorizer = new StyleColorizer(RichEditor.Document);
             RichEditor.TextArea.TextView.LineTransformers.Add(_colorizer);
 
-            _isInitializing = false;
-
-            RichEditor.Document.TextChanged += (s, e) =>
-            {
-                if (_viewModel.SaisieTexte != RichEditor.Text)
-                {
-                    _viewModel.SaisieTexte = RichEditor.Text;
-                }
-            };
-
-            _viewModel.PropertyChanged += (s, e) =>
-            {
-                if (e.PropertyName == nameof(MainViewModel.SaisieTexte))
-                {
-                    if (RichEditor.Text != _viewModel.SaisieTexte)
-                    {
-                        RichEditor.Text = _viewModel.SaisieTexte;
-                        _colorizer.ViderStyles();
-                    }
-                }
-
-                if (e.PropertyName == nameof(MainViewModel.LoadedStyles))
-                {
-                    ChargerStyles(_viewModel.GetLoadedStyles());
-                }
-            };
+            RichEditor.Document.TextChanged += OnRichEditorTextChanged;
+            _viewModel.PropertyChanged += OnViewModelPropertyChanged;
 
             RichEditor.Text = _viewModel.SaisieTexte;
-
             ChargerStyles(_viewModel.GetLoadedStyles());
+
+            _isInitializing = false;
         }
 
         public List<CustomStyleSegment> GetCurrentStyles()
@@ -62,12 +39,51 @@ namespace VaultDaily
             return _colorizer.GetSegments();
         }
 
+        private void OnRichEditorTextChanged(object? sender, EventArgs e)
+        {
+            if (_viewModel.SaisieTexte == RichEditor.Text)
+            {
+                return;
+            }
+
+            _viewModel.SaisieTexte = RichEditor.Text;
+        }
+
+        private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            if (e.PropertyName == nameof(MainViewModel.SaisieTexte))
+            {
+                RefreshEditorTextFromViewModel();
+                return;
+            }
+
+            if (e.PropertyName == nameof(MainViewModel.LoadedStyles))
+            {
+                ChargerStyles(_viewModel.GetLoadedStyles());
+                return;
+            }
+        }
+
+        private void RefreshEditorTextFromViewModel()
+        {
+            if (RichEditor.Text == _viewModel.SaisieTexte)
+            {
+                return;
+            }
+
+            RichEditor.Text = _viewModel.SaisieTexte;
+            _colorizer.ViderStyles();
+        }
+
         private void AppliquerStyleSelection(string style, string? detailCouleur = null)
         {
             int debut = RichEditor.SelectionStart;
             int longueur = RichEditor.SelectionLength;
 
-            if (longueur == 0) return; 
+            if (longueur == 0)
+            {
+                return;
+            }
 
             if (style == "Couleur" && detailCouleur != null)
             {
@@ -77,12 +93,20 @@ namespace VaultDaily
             {
                 _colorizer.ToggleStyle(debut, longueur, style);
             }
-            
+
             RichEditor.TextArea.TextView.Redraw();
         }
 
-        public void OnBoldClicked(object? sender, RoutedEventArgs e) => AppliquerStyleSelection("Gras");
-        public void OnItalicClicked(object? sender, RoutedEventArgs e) => AppliquerStyleSelection("Italique");
+        public void OnBoldClicked(object? sender, RoutedEventArgs e)
+        {
+            AppliquerStyleSelection("Gras");
+        }
+
+        public void OnItalicClicked(object? sender, RoutedEventArgs e)
+        {
+            AppliquerStyleSelection("Italique");
+        }
+
         private void OnUnderlineClicked(object? sender, RoutedEventArgs e)
         {
             AppliquerStyleSelection("Underline");
@@ -90,17 +114,36 @@ namespace VaultDaily
 
         private void OnColorPickerChanged(object? sender, ColorChangedEventArgs e)
         {
-            if (_isInitializing) return;
-            string codeHexa = e.NewColor.ToString(); 
+            if (_isInitializing)
+            {
+                return;
+            }
+
+            string codeHexa = e.NewColor.ToString();
+
             AppliquerStyleSelection("Couleur", codeHexa);
+        }
+
+        private void OnHistoryDayClicked(object? sender, RoutedEventArgs e)
+        {
+            Button? button = sender as Button;
+
+            if (button == null)
+            {
+                return;
+            }
+
+            if (button.Tag is DateTime date)
+            {
+                _viewModel.SelectedDate = date;
+            }
         }
 
         public void OnSaveClicked(object? sender, RoutedEventArgs e)
         {
             _viewModel.SaisieTexte = RichEditor.Text;
 
-            List<CustomStyleSegment> styles =
-                _colorizer.GetSegments();
+            List<CustomStyleSegment> styles = _colorizer.GetSegments();
 
             _viewModel.SaveCurrentEntry(styles);
         }

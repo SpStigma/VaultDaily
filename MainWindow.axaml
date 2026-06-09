@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:VaultDaily.ViewModels"
         xmlns:ae="using:AvaloniaEdit"
+        xmlns:history="using:VaultDaily.ViewModels.History"
         x:Class="VaultDaily.MainWindow"
         x:DataType="vm:MainViewModel"
         Title="VaultDaily - Mon Journal"
@@ -41,8 +42,12 @@
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="12,10"/>
-            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="10,8"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+
+        <Style Selector="Button.SidebarBtn:pointerover">
+            <Setter Property="Background" Value="#EFE6DD"/>
         </Style>
 
         <Style Selector="TextBox.TitleBox">
@@ -55,22 +60,8 @@
             <Setter Property="Padding" Value="0"/>
         </Style>
 
-        <Style Selector="ListBox">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-
-        <Style Selector="ListBoxItem">
-            <Setter Property="Margin" Value="0,2"/>
-            <Setter Property="CornerRadius" Value="10"/>
-        </Style>
-
-        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
-            <Setter Property="Background" Value="#EFE6DD"/>
-        </Style>
-
-        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
-            <Setter Property="Background" Value="#E2D3C6"/>
+        <Style Selector="Expander">
+            <Setter Property="Foreground" Value="#4A3E3D"/>
         </Style>
 
     </Window.Styles>
@@ -122,30 +113,149 @@
                     </StackPanel>
                 </Border>
 
-                <ScrollViewer Grid.Row="2">
-                    <ListBox ItemsSource="{Binding AvailableDates}"
-                             SelectedItem="{Binding SelectedDate}">
+                <!-- Historique groupé : Année -> Mois -> Jours -->
+                <!-- Historique groupé : Année -> Mois -> Jours -->
+                <ScrollViewer Grid.Row="2"
+                            VerticalScrollBarVisibility="Auto">
 
-                        <ListBox.ItemTemplate>
-                            <DataTemplate>
-                                <Border Padding="10,8">
-                                    <StackPanel Orientation="Horizontal"
-                                                Spacing="10">
+                    <ItemsControl ItemsSource="{Binding HistoryGroups}">
 
-                                        <TextBlock Text="📜"
-                                                   FontSize="15"
-                                                   Foreground="#8C7A6B"/>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate DataType="history:YearHistoryGroup">
 
-                                        <TextBlock Text="{Binding StringFormat='{}{0:dd MMM yyyy}'}"
-                                                   FontFamily="Georgia"
-                                                   FontSize="14"
-                                                   Foreground="#6E5D53"/>
-                                    </StackPanel>
+                                <Border Background="#EFE4DA"
+                                        BorderBrush="#E1D1C2"
+                                        BorderThickness="1"
+                                        CornerRadius="14"
+                                        Padding="10"
+                                        Margin="0,0,0,12">
+
+                                    <Expander IsExpanded="True"
+                                            Background="Transparent"
+                                            Padding="0">
+
+                                        <Expander.Header>
+                                            <Grid ColumnDefinitions="Auto,*"
+                                                Margin="0,0,0,2">
+
+                                                <Border Grid.Column="0"
+                                                        Width="32"
+                                                        Height="32"
+                                                        Background="#D8C5B4"
+                                                        CornerRadius="16"
+                                                        Margin="0,0,10,0">
+
+                                                    <TextBlock Text="✦"
+                                                            HorizontalAlignment="Center"
+                                                            VerticalAlignment="Center"
+                                                            Foreground="#FFFDF9"
+                                                            FontSize="13"/>
+                                                </Border>
+
+                                                <StackPanel Grid.Column="1"
+                                                            VerticalAlignment="Center"
+                                                            Spacing="1">
+
+                                                    <TextBlock Text="{Binding Year}"
+                                                            FontFamily="Georgia"
+                                                            FontSize="18"
+                                                            FontWeight="Bold"
+                                                            Foreground="#4A3E3D"/>
+
+                                                    <TextBlock Text="Année du journal"
+                                                            FontSize="11"
+                                                            Foreground="#9A8778"/>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Expander.Header>
+
+                                        <ItemsControl ItemsSource="{Binding Months}"
+                                                    Margin="8,10,0,0">
+
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate DataType="history:MonthHistoryGroup">
+
+                                                    <Border Background="#F8F1EA"
+                                                            BorderBrush="#E8DFD8"
+                                                            BorderThickness="1"
+                                                            CornerRadius="12"
+                                                            Padding="8"
+                                                            Margin="0,0,0,8">
+
+                                                        <Expander IsExpanded="False"
+                                                                Background="Transparent"
+                                                                Padding="0">
+
+                                                            <Expander.Header>
+                                                                <Grid ColumnDefinitions="Auto,*"
+                                                                    Margin="0">
+
+                                                                    <Border Grid.Column="0"
+                                                                            Width="24"
+                                                                            Height="24"
+                                                                            Background="#E3D4C7"
+                                                                            CornerRadius="12"
+                                                                            Margin="0,0,8,0">
+
+                                                                        <TextBlock Text="•"
+                                                                                HorizontalAlignment="Center"
+                                                                                VerticalAlignment="Center"
+                                                                                Foreground="#8C7A6B"
+                                                                                FontSize="18"/>
+                                                                    </Border>
+
+                                                                    <TextBlock Grid.Column="1"
+                                                                            Text="{Binding MonthName}"
+                                                                            FontFamily="Georgia"
+                                                                            FontSize="14"
+                                                                            FontWeight="SemiBold"
+                                                                            Foreground="#6E5D53"
+                                                                            VerticalAlignment="Center"/>
+                                                                </Grid>
+                                                            </Expander.Header>
+
+                                                            <ItemsControl ItemsSource="{Binding Days}"
+                                                                        Margin="12,8,0,0">
+
+                                                                <ItemsControl.ItemTemplate>
+                                                                    <DataTemplate DataType="history:JournalDayItem">
+
+                                                                        <Button Classes="HistoryDayBtn"
+                                                                                Click="OnHistoryDayClicked"
+                                                                                Tag="{Binding Date}">
+
+                                                                            <Grid ColumnDefinitions="Auto,*"
+                                                                                ColumnSpacing="8">
+
+                                                                                <TextBlock Grid.Column="0"
+                                                                                        Text="📜"
+                                                                                        FontSize="13"
+                                                                                        Foreground="#8C7A6B"
+                                                                                        VerticalAlignment="Center"/>
+
+                                                                                <TextBlock Grid.Column="1"
+                                                                                        Text="{Binding DisplayName}"
+                                                                                        FontFamily="Georgia"
+                                                                                        FontSize="13"
+                                                                                        Foreground="#6E5D53"
+                                                                                        VerticalAlignment="Center"/>
+                                                                            </Grid>
+                                                                        </Button>
+                                                                    </DataTemplate>
+                                                                </ItemsControl.ItemTemplate>
+                                                            </ItemsControl>
+
+                                                        </Expander>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+
+                                    </Expander>
                                 </Border>
                             </DataTemplate>
-                        </ListBox.ItemTemplate>
-
-                    </ListBox>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </ScrollViewer>
             </Grid>
         </Border>

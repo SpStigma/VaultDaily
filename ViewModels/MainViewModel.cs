@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using VaultDaily.Editor;
@@ -6,6 +8,7 @@ using VaultDaily.Models;
 using VaultDaily.Models.AST;
 using VaultDaily.Services;
 using VaultDaily.Services.AST;
+using VaultDaily.ViewModels.History;
 
 namespace VaultDaily.ViewModels
 {
@@ -21,6 +24,8 @@ namespace VaultDaily.ViewModels
 
         public ObservableCollection<DateTime> AvailableDates { get; } = new();
 
+        public ObservableCollection<YearHistoryGroup> HistoryGroups { get; } = new();
+
         public MainViewModel()
         {
             _journalService = new JournalService();
@@ -34,16 +39,27 @@ namespace VaultDaily.ViewModels
 
         public List<CustomStyleSegment> LoadedStyles
         {
-            get => _loadedStyles;
-            private set => RaiseAndSetIfChanged(ref _loadedStyles, value);
+            get
+            {
+                return _loadedStyles;
+            }
+            private set
+            {
+                RaiseAndSetIfChanged(ref _loadedStyles, value);
+            }
         }
 
         public DateTime SelectedDate
         {
-            get => _selectedDate;
+            get
+            {
+                return _selectedDate;
+            }
             set
             {
-                if (RaiseAndSetIfChanged(ref _selectedDate, value))
+                DateTime newDate = value.Date;
+
+                if (RaiseAndSetIfChanged(ref _selectedDate, newDate))
                 {
                     LoadCurrentEntry();
                 }
@@ -52,26 +68,45 @@ namespace VaultDaily.ViewModels
 
         public string Title
         {
-            get => _title;
-            set => RaiseAndSetIfChanged(ref _title, value);
+            get
+            {
+                return _title;
+            }
+            set
+            {
+                RaiseAndSetIfChanged(ref _title, value);
+            }
         }
 
         public string SaisieTexte
         {
-            get => _saisieTexte;
-            set => RaiseAndSetIfChanged(ref _saisieTexte, value);
+            get
+            {
+                return _saisieTexte;
+            }
+            set
+            {
+                RaiseAndSetIfChanged(ref _saisieTexte, value);
+            }
         }
 
         public void RefreshDates()
         {
             AvailableDates.Clear();
 
-            var dates = _journalService.GetAllJournalDates();
+            List<DateTime> dates = _journalService
+                .GetAllJournalDates()
+                .Select(date => date.Date)
+                .Distinct()
+                .OrderByDescending(date => date)
+                .ToList();
 
-            foreach (var d in dates)
+            foreach (DateTime date in dates)
             {
-                AvailableDates.Add(d);
+                AvailableDates.Add(date);
             }
+
+            BuildHistoryGroups();
         }
 
         public void SaveCurrentEntry(List<CustomStyleSegment> styles)
@@ -80,7 +115,7 @@ namespace VaultDaily.ViewModels
 
             var entry = new Journal
             {
-                Date = SelectedDate,
+                Date = SelectedDate.Date,
                 Title = Title,
                 Document = document
             };
@@ -92,7 +127,7 @@ namespace VaultDaily.ViewModels
 
         private void LoadCurrentEntry()
         {
-            var entry = _journalService.LoadEntry(_selectedDate);
+            Journal entry = _journalService.LoadEntry(_selectedDate.Date);
 
             Title = entry.Title;
 
@@ -100,8 +135,7 @@ namespace VaultDaily.ViewModels
             {
                 var renderer = new AstRenderer();
 
-                var result =
-                    renderer.Render(entry.Document);
+                AstRenderResult result = renderer.Render(entry.Document);
 
                 SaisieTexte = result.Text;
                 LoadedStyles = result.Segments;
@@ -116,6 +150,59 @@ namespace VaultDaily.ViewModels
         public List<CustomStyleSegment> GetLoadedStyles()
         {
             return LoadedStyles;
+        }
+
+        private void BuildHistoryGroups()
+        {
+            HistoryGroups.Clear();
+
+            List<DateTime> dates = AvailableDates
+                .OrderByDescending(date => date)
+                .ToList();
+
+            var yearGroups = dates
+                .GroupBy(date => date.Year)
+                .OrderByDescending(group => group.Key);
+
+            foreach (var yearGroup in yearGroups)
+            {
+                YearHistoryGroup yearHistoryGroup = new YearHistoryGroup();
+                yearHistoryGroup.Year = yearGroup.Key;
+
+                var monthGroups = yearGroup
+                    .GroupBy(date => date.Month)
+                    .OrderByDescending(group => group.Key);
+
+                foreach (var monthGroup in monthGroups)
+                {
+                    DateTime monthDate = new DateTime(
+                        yearGroup.Key,
+                        monthGroup.Key,
+                        1);
+
+                    MonthHistoryGroup monthHistoryGroup = new MonthHistoryGroup();
+                    monthHistoryGroup.MonthNumber = monthGroup.Key;
+                    monthHistoryGroup.MonthName = monthDate.ToString(
+                        "MMMM",
+                        CultureInfo.CurrentCulture);
+
+                    List<DateTime> monthDates = monthGroup
+                        .OrderByDescending(date => date)
+                        .ToList();
+
+                    foreach (DateTime date in monthDates)
+                    {
+                        JournalDayItem dayItem = new JournalDayItem();
+                        dayItem.Date = date;
+
+                        monthHistoryGroup.Days.Add(dayItem);
+                    }
+
+                    yearHistoryGroup.Months.Add(monthHistoryGroup);
+                }
+
+                HistoryGroups.Add(yearHistoryGroup);
+            }
         }
     }
 }
